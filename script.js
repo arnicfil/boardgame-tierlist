@@ -1,8 +1,9 @@
 // Storage key
 const STORAGE_KEY = 'boardgame-tierlist';
 
-// BGG API
-const BGG_API = 'https://boardgamegeek.com/xmlapi2/search?query=';
+// BGG API - Using CORS proxy for v2 API
+const BGG_API_V2 = 'https://boardgamegeek.com/xmlapi2/search?query=';
+const CORS_PROXY = 'https://corsproxy.io/?';
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -22,6 +23,11 @@ searchInput.addEventListener('keypress', (e) => {
 });
 searchInput.addEventListener('input', handleInputChange);
 clearBtn.addEventListener('click', clearTierlist);
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrapper')) {
+        removeSuggestions();
+    }
+});
 
 // Load tierlist on page load
 window.addEventListener('load', loadTierlist);
@@ -36,7 +42,8 @@ async function handleInputChange() {
     }
 
     try {
-        const response = await fetch(`${BGG_API}${encodeURIComponent(query)}`);
+        const url = `${CORS_PROXY}${encodeURIComponent(BGG_API_V2 + encodeURIComponent(query))}`;
+        const response = await fetch(url);
         const xmlText = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
@@ -46,11 +53,10 @@ async function handleInputChange() {
 
         games.forEach((game) => {
             const id = game.getAttribute('id');
-            const name = game.querySelector('name')?.textContent || 'Unknown';
-            const imageElement = game.querySelector('image');
-            const image = imageElement?.textContent || `https://cf.geekdo-images.com/images/pic${id}_t.jpg`;
+            const nameElement = game.querySelector('name[type="primary"]') || game.querySelector('name');
+            const name = nameElement?.textContent || 'Unknown';
             
-            allGames.push({ id, name, image });
+            allGames.push({ id, name });
         });
 
         if (allGames.length > 0) {
@@ -59,7 +65,7 @@ async function handleInputChange() {
             removeSuggestions();
         }
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('Suggestions error:', error);
         removeSuggestions();
     }
 }
@@ -76,8 +82,10 @@ function showSuggestions(games) {
     limitedGames.forEach((game) => {
         const suggestion = document.createElement('div');
         suggestion.className = 'suggestion-item';
+        const image = `https://cf.geekdo-images.com/images/pic${game.id}_t.jpg`;
+        
         suggestion.innerHTML = `
-            <img src="${game.image}" alt="${game.name}" class="suggestion-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%228%22%3ENo Img%3C/text%3E%3C/svg%3E'">
+            <img src="${image}" alt="${game.name}" class="suggestion-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%228%22%3ENo Img%3C/text%3E%3C/svg%3E'">
             <div class="suggestion-text">
                 <div class="suggestion-name">${game.name}</div>
                 <div class="suggestion-id">BGG ID: ${game.id}</div>
@@ -91,8 +99,10 @@ function showSuggestions(games) {
         suggestionsDropdown.appendChild(suggestion);
     });
 
-    searchInput.parentElement.style.position = 'relative';
-    searchInput.parentElement.appendChild(suggestionsDropdown);
+    const wrapper = document.querySelector('.search-wrapper');
+    if (wrapper) {
+        wrapper.appendChild(suggestionsDropdown);
+    }
 }
 
 // Remove suggestions dropdown
@@ -108,41 +118,41 @@ function selectGame(game) {
     searchInput.value = game.name;
     removeSuggestions();
     allGames = [game]; // Set to just this game
-    displayResults([game]);
+    performSearch();
 }
 
 // Perform search for boardgames
 async function performSearch() {
-    if (allGames.length === 0) {
-        const query = searchInput.value.trim();
-        if (!query) return;
+    const query = searchInput.value.trim();
+    if (!query) return;
 
-        searchResults.innerHTML = '<div class="loading"><div class="spinner"></div> Searching...</div>';
+    searchResults.innerHTML = '<div class="loading"><div class="spinner"></div> Searching...</div>';
 
-        try {
-            const response = await fetch(`${BGG_API}${encodeURIComponent(query)}`);
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    try {
+        const url = `${CORS_PROXY}${encodeURIComponent(BGG_API_V2 + encodeURIComponent(query))}`;
+        const response = await fetch(url);
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
-            const games = xmlDoc.querySelectorAll('item');
-            
-            if (games.length === 0) {
-                searchResults.innerHTML = '<p class="placeholder">No games found. Try a different search.</p>';
-                return;
-            }
-
-            displayResults(Array.from(games).map(game => ({
-                id: game.getAttribute('id'),
-                name: game.querySelector('name')?.textContent || 'Unknown',
-                image: game.querySelector('image')?.textContent || `https://cf.geekdo-images.com/images/pic${game.getAttribute('id')}_t.jpg`
-            })));
-        } catch (error) {
-            console.error('Search error:', error);
-            searchResults.innerHTML = '<p class="placeholder">Error searching. Please try again.</p>';
+        const games = xmlDoc.querySelectorAll('item');
+        
+        if (games.length === 0) {
+            searchResults.innerHTML = '<p class="placeholder">No games found. Try a different search.</p>';
+            return;
         }
-    } else {
-        displayResults(allGames);
+
+        displayResults(Array.from(games).map(game => {
+            const id = game.getAttribute('id');
+            const nameElement = game.querySelector('name[type="primary"]') || game.querySelector('name');
+            const name = nameElement?.textContent || 'Unknown';
+            const image = `https://cf.geekdo-images.com/images/pic${id}_t.jpg`;
+            
+            return { id, name, image };
+        }));
+    } catch (error) {
+        console.error('Search error:', error);
+        searchResults.innerHTML = '<p class="placeholder">Error searching. Please try again. Make sure you have an internet connection.</p>';
     }
 }
 
@@ -167,7 +177,7 @@ function displayResults(games) {
 
         gameCard.addEventListener('dragstart', dragStart);
         gameCard.addEventListener('click', () => {
-            // Allow clicking to add game too
+            // Allow clicking to add game to first tier
             const tierGamesElements = document.querySelectorAll('.tier-games');
             if (tierGamesElements.length > 0) {
                 addGameToTier(game.id, game.name, game.image, tierGamesElements[0]);
@@ -236,7 +246,8 @@ function addGameToTier(gameId, gameName, gameImage, tierElement) {
     `;
 
     const removeBtn = gameElement.querySelector('.remove-btn');
-    removeBtn.addEventListener('click', () => {
+    removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         gameElement.remove();
         saveTierlist();
     });
