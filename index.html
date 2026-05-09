@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boardgame Tierlist Maker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 Boardgame Tierlist</h1>
+        <p class="subtitle">Search, drag, and organize your favorite board games into tiers!</p>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search for a boardgame... (e.g., 'Catan', 'Ticket to Ride')"
+                autocomplete="off"
+            >
+            <button id="searchBtn">Search</button>
+            <button id="clearBtn">Clear Tierlist</button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-label">Search Results:</div>
+        <div id="searchResults" class="placeholder">Search for a boardgame to get started!</div>
+
+        <!-- Tierlist Section -->
+        <div class="tierlist-label">Your Tierlist (Drag games here):</div>
+        <div id="tierlist">
+            <!-- S Tier -->
+            <div class="tier tier-S">
+                <div class="tier-label">S</div>
+                <div class="tier-games" data-tier="S"></div>
+            </div>
+
+            <!-- A Tier -->
+            <div class="tier tier-A">
+                <div class="tier-label">A</div>
+                <div class="tier-games" data-tier="A"></div>
+            </div>
+
+            <!-- B Tier -->
+            <div class="tier tier-B">
+                <div class="tier-label">B</div>
+                <div class="tier-games" data-tier="B"></div>
+            </div>
+
+            <!-- C Tier -->
+            <div class="tier tier-C">
+                <div class="tier-label">C</div>
+                <div class="tier-games" data-tier="C"></div>
+            </div>
+
+            <!-- D Tier -->
+            <div class="tier tier-D">
+                <div class="tier-label">D</div>
+                <div class="tier-games" data-tier="D"></div>
+            </div>
+
+            <!-- F Tier -->
+            <div class="tier tier-F">
+                <div class="tier-label">F</div>
+                <div class="tier-games" data-tier="F"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
