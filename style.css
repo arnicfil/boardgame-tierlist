@@ -36,12 +36,15 @@ h1 {
 }
 
 /* Search Section */
+.search-wrapper {
+    position: relative;
+    margin-bottom: 30px;
+}
+
 .search-section {
     display: flex;
     gap: 10px;
-    margin-bottom: 30px;
     flex-wrap: wrap;
-    position: relative;
 }
 
 #searchInput {
@@ -91,7 +94,7 @@ button:active {
 /* Suggestions Dropdown */
 .suggestions-dropdown {
     position: absolute;
-    top: 100%;
+    top: 48px;
     left: 0;
     right: 0;
     background: white;
@@ -128,6 +131,7 @@ button:active {
     object-fit: cover;
     border-radius: 4px;
     background: #eee;
+    flex-shrink: 0;
 }
 
 .suggestion-text {
@@ -177,7 +181,6 @@ button:active {
     transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     flex-direction: column;
-    draggable: true;
 }
 
 .game-card:hover {
