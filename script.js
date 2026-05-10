@@ -1,9 +1,8 @@
 // Storage key
 const STORAGE_KEY = 'boardgame-tierlist';
 
-// BGG API - Using CORS proxy for v2 API
-const BGG_API_V2 = 'https://boardgamegeek.com/xmlapi2/search?query=';
-const CORS_PROXY = 'https://corsproxy.io/?';
+// BGG API
+const BGG_API = 'https://boardgamegeek.com/xmlapi2/search?query=';
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -14,7 +13,7 @@ const tierlist = document.getElementById('tierlist');
 
 // Dropdown for suggestions
 let suggestionsDropdown = null;
-let allGames = []; // Cache of all games from search
+let searchTimeout = null;
 
 // Event Listeners
 searchBtn.addEventListener('click', performSearch);
@@ -33,7 +32,7 @@ document.addEventListener('click', (e) => {
 window.addEventListener('load', loadTierlist);
 
 // Handle input change to show suggestions
-async function handleInputChange() {
+function handleInputChange() {
     const query = searchInput.value.trim();
     
     if (query.length < 2) {
@@ -41,31 +40,58 @@ async function handleInputChange() {
         return;
     }
 
+    // Debounce the search
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        fetchAndShowSuggestions(query);
+    }, 300);
+}
+
+// Fetch suggestions from BGG API using fetch with text
+async function fetchAndShowSuggestions(query) {
     try {
-        const url = `${CORS_PROXY}${encodeURIComponent(BGG_API_V2 + encodeURIComponent(query))}`;
-        const response = await fetch(url);
+        // Use a simple fetch to the BGG API
+        const response = await fetch(`https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/xml'
+            }
+        });
+
+        if (!response.ok) {
+            console.error('API Error:', response.status);
+            return;
+        }
+
         const xmlText = await response.text();
+        
+        // Parse XML
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        
+        if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+            console.error('XML Parse Error');
+            return;
+        }
 
         const games = xmlDoc.querySelectorAll('item');
-        allGames = [];
+        const gamesList = [];
 
         games.forEach((game) => {
             const id = game.getAttribute('id');
             const nameElement = game.querySelector('name[type="primary"]') || game.querySelector('name');
             const name = nameElement?.textContent || 'Unknown';
             
-            allGames.push({ id, name });
+            gamesList.push({ id, name });
         });
 
-        if (allGames.length > 0) {
-            showSuggestions(allGames);
+        if (gamesList.length > 0) {
+            showSuggestions(gamesList);
         } else {
             removeSuggestions();
         }
     } catch (error) {
-        console.error('Suggestions error:', error);
+        console.error('Fetch error:', error);
         removeSuggestions();
     }
 }
@@ -117,7 +143,6 @@ function removeSuggestions() {
 function selectGame(game) {
     searchInput.value = game.name;
     removeSuggestions();
-    allGames = [game]; // Set to just this game
     performSearch();
 }
 
@@ -129,11 +154,25 @@ async function performSearch() {
     searchResults.innerHTML = '<div class="loading"><div class="spinner"></div> Searching...</div>';
 
     try {
-        const url = `${CORS_PROXY}${encodeURIComponent(BGG_API_V2 + encodeURIComponent(query))}`;
-        const response = await fetch(url);
+        const response = await fetch(`https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/xml'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
         const xmlText = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+        if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+            searchResults.innerHTML = '<p class="placeholder">Error parsing results. Try a different search.</p>';
+            return;
+        }
 
         const games = xmlDoc.querySelectorAll('item');
         
@@ -152,7 +191,7 @@ async function performSearch() {
         }));
     } catch (error) {
         console.error('Search error:', error);
-        searchResults.innerHTML = '<p class="placeholder">Error searching. Please try again. Make sure you have an internet connection.</p>';
+        searchResults.innerHTML = '<p class="placeholder">Error searching. Please make sure you have internet connection and try again.</p>';
     }
 }
 
@@ -195,7 +234,6 @@ let draggedElement = null;
 function dragStart(e) {
     draggedElement = this;
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('text/html', this.innerHTML);
 }
 
 const tierGames = document.querySelectorAll('.tier-games');
